@@ -157,7 +157,8 @@
                 githubButton: "NajiDevs",
                 copiedSuccessfully: "copied to clipboard!",
                 copyFailed: "Failed to copy IP to clipboard",
-                copy: "Copy"
+                copy: "Copy",
+                port: "Port"
             },
             fa: {
                 title: "اسکنر آی‌پی کلادفلر",
@@ -187,7 +188,8 @@
                 githubButton: "NajiDevs",
                 copiedSuccessfully: "کپی شد!",
                 copyFailed: "کپی ناموفق بود",
-                copy: "کپی"
+                copy: "کپی",
+                port: "پورت"
             }
         };
 
@@ -203,7 +205,8 @@
                 targetCount: 10,
                 maxScanLimit: 500,
                 ranges: CLOUDFLARE_RANGES.join('\n'),
-                highChance: true
+                highChance: true,
+                port: 2096
             });
             
             const [results, setResults] = useState([]);
@@ -254,7 +257,7 @@
                 const id = setTimeout(() => controller.abort(), timeout);
 
                 try {
-                    await fetch(`https://${ip}:2096/__down`, { 
+                    await fetch(`https://${ip}:${config.port}/__down`, { 
                         mode: 'no-cors', 
                         signal: controller.signal,
                         cache: 'no-store'
@@ -386,6 +389,10 @@
                                     <div>
                                         <label className="block text-xs text-gray-400 mb-1">{t.ranges}</label>
                                         <textarea value={config.ranges} onChange={(e) => setConfig({...config, ranges: e.target.value})} rows={5} className="w-full bg-primary border border-white/10 rounded-lg px-3 py-2 focus:border-accent focus:outline-none text-xs font-mono text-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-400 mb-1">{t.port}</label>
+                                        <input type="number" value={config.port} onChange={(e) => setConfig({...config, port: parseInt(e.target.value)})} className="w-full bg-primary border border-white/10 rounded-lg px-3 py-2 focus:border-accent focus:outline-none text-white" />
                                     </div>
                                 </div>
                             </div>
