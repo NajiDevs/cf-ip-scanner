@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare IP Scanner - Professional</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Vazirmatn:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#1E1E1E", // Dark Gray Background
+                        accent: "#C7A46C",  // Gold/Luxury
+                        surface: "#2D2D2D", // Card Background
+                        dark: "#121212"
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        vazir: ['Vazirmatn', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1E1E1E; }
+        ::-webkit-scrollbar-thumb { background: #C7A46C; border-radius: 4px; }
+        
+        body { background-color: #1E1E1E; color: white; }
+        .rtl { direction: rtl; font-family: 'Vazirmatn', sans-serif; }
+        .ltr { direction: ltr; font-family: 'Inter', sans-serif; }
+        
+        /* Notification Toast Styling */
+        .notification-toast {
+            animation: slideInRight 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICONS (SVG Components) ---
+        const IconPlay = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
+        const IconStop = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>; // RotateCcw lookalike
+        const IconWifi = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
+        const IconGlobe = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
+        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+        const IconShield = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>;
+        const IconDownload = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+        const IconCopy = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>;
+
+        // --- DATA ---
+        const CLOUDFLARE_RANGES = [
+            "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22",
+            "141.101.64.0/18", "108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20",
+            "197.234.240.0/22", "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+            "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22", "103.23.160.0/20",
+            "23.227.38.0/24", "23.227.39.0/24", "23.227.60.0/24", "23.247.163.0/24",
+            "31.22.116.0/24", "31.43.179.0/24", "45.8.104.0/24", "45.8.105.0/24",
+            "45.8.106.0/24", "45.8.107.0/24", "45.8.211.0/24", "45.12.30.0/24",
+            "45.12.31.0/24", "45.14.174.0/24", "45.32.177.0/24", "45.67.215.0/24",
+            "45.80.111.0/24", "45.85.118.0/24", "45.85.119.0/24", "45.87.175.0/24",
+            "45.94.169.0/24", "45.95.241.0/24", "45.131.4.0/24", "45.131.5.0/24",
+            "45.131.6.0/24", "45.131.7.0/24", "45.131.208.0/24", "45.131.209.0/24",
+            "45.131.210.0/24", "45.131.211.0/24", "45.133.247.0/24", "45.142.120.0/24",
+            "45.159.216.0/24", "45.159.217.0/24", "45.159.218.0/24", "45.159.219.0/24",
+            "63.141.128.0/24", "64.68.192.0/24", "66.81.247.0/24", "66.235.200.0/24",
+            "69.84.182.0/24", "80.94.83.0/24", "89.47.56.0/24", "89.116.250.0/24",
+            "89.207.18.0/24", "91.193.58.0/24", "91.195.110.0/24", "93.114.64.0/24",
+            "94.140.0.0/24", "103.11.212.0/24", "103.11.214.0/24", "103.21.244.0/24",
+            "103.160.204.0/24", "103.169.142.0/24", "103.172.110.0/24", "103.172.111.0/24",
+            "103.184.44.0/24", "103.184.45.0/24"
+
+        ];
+
+        // --- UTILS ---
+        const ipToLong = (ip) => ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+        const longToIp = (long) => [24, 16, 8, 0].map((shift) => (long >>> shift) & 255).join('.');
+        
+        const parseCIDR = (cidr) => {
+            const [ip, mask] = cidr.split('/');
+            const maskInt = parseInt(mask, 10);
+            const ipLong = ipToLong(ip);
+            const size = Math.pow(2, 32 - maskInt);
+            return { start: ipLong, end: ipLong + size - 1 };
+        };
+
+        const getRandomIpFromRanges = (ranges) => {
+            const range = ranges[Math.floor(Math.random() * ranges.length)];
+            const { start, end } = parseCIDR(range);
+            const randomLong = Math.floor(Math.random() * (end - start)) + start;
+            return longToIp(randomLong);
+        };
+
+        const translations = {
+            en: {
+                title: "Cloudflare IP Scanner",
+                subtitle: "Find the fastest clean IPs with low latency",
+                start: "Start Scan",
+                stop: "Stop",
+                settings: "Configuration",
+                results: "Scan Results",
+                maxPing: "Max Ping (ms)",
+                ipCount: "IPs Needed",
+                scanLimit: "Max Scan Count",
+                ranges: "IP Ranges (CIDR)",
+                status: "Status",
+                scanning: "Scanning...",
+                idle: "Ready",
+                completed: "Completed",
+                ip: "IP Address",
+                ping: "Ping (Latency)",
+                export: "Export CSV",
+                found: "Found",
+                scanned: "Scanned",
+                language: "فارسی",
+                desc: "This tool scans Cloudflare IP ranges directly from your browser to find the lowest latency IPs for your network configuration.",
+                bestIpChance: "Optimization",
+                internetForAll: "Internet for Everyone or No One",
+                copyright: "© NajiDevs - 2026 All rights reserved. No part of this website may be reproduced, distributed, or transmitted in any form or by any means without the prior written permission of the owner",
+                githubButton: "NajiDevs",
+                copiedSuccessfully: "copied to clipboard!",
+                copyFailed: "Failed to copy IP to clipboard",
+                copy: "Copy"
+            },
+            fa: {
+                title: "اسکنر آی‌پی کلادفلر",
+                subtitle: "یافتن سریع‌ترین آی‌پی‌های تمیز با پینگ پایین",
+                start: "شروع اسکن",
+                stop: "توقف",
+                settings: "تنظیمات اسکن",
+                results: "نتایج اسکن",
+                maxPing: "حداکثر پینگ (میلی‌ثانیه)",
+                ipCount: "تعداد آی‌پی مورد نیاز",
+                scanLimit: "حداکثر تعداد بررسی",
+                ranges: "رنج‌های آی‌پی (CIDR)",
+                status: "وضعیت",
+                scanning: "در حال اسکن...",
+                idle: "آماده",
+                completed: "تکمیل شد",
+                ip: "آدرس آی‌پی",
+                ping: "پینگ (تاخیر)",
+                export: "دانلود خروجی",
+                found: "پیدا شده",
+                scanned: "بررسی شده",
+                language: "English",
+                desc: "این ابزار رنج‌های آی‌پی کلادفلر را مستقیماً از مرورگر شما اسکن می‌کند تا بهترین و سریع‌ترین آی‌پی‌ها را برای شبکه شما پیدا کند.",
+                bestIpChance: "بهینه‌سازی",
+                internetForAll: "اینترنت برای همه یا هیچکس",
+                copyright: "© NajiDevs - 2026 تمامی حقوق محفوظ است. هیچ بخشی از این وب سایت نباید بدون اجازه کتبی از قبل صاحب مجوز، تکثیر، توزیع یا انتقال یابد",
+                githubButton: "NajiDevs",
+                copiedSuccessfully: "کپی شد!",
+                copyFailed: "کپی ناموفق بود",
+                copy: "کپی"
+            }
+        };
+
+        // --- APP COMPONENT ---
+        function App() {
+            const [lang, setLang] = useState('en');
+            const t = translations[lang];
+            const isRTL = lang === 'fa';
+
+            const [isRunning, setIsRunning] = useState(false);
+            const [config, setConfig] = useState({
+                maxPing: 1000,
+                targetCount: 10,
+                maxScanLimit: 500,
+                ranges: CLOUDFLARE_RANGES.join('\n'),
+                highChance: true
+            });
+            
+            const [results, setResults] = useState([]);
+            const [stats, setStats] = useState({ scanned: 0, found: 0 });
+            const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+            const notificationTimeout = useRef(null);
+            const stopSignal = useRef(false);
+
+            // Function to show notification
+            const showNotification = (message, type = 'success') => {
+                // Clear any existing timeout
+                if (notificationTimeout.current) {
+                    clearTimeout(notificationTimeout.current);
+                }
+                
+                setNotification({ show: true, message, type });
+                
+                // Auto-hide notification after 3 seconds
+                notificationTimeout.current = setTimeout(() => {
+                    setNotification({ show: false, message: '', type: '' });
+                }, 3000);
+            };
+
+            // Cleanup timeout on unmount
+            useEffect(() => {
+                return () => {
+                    if (notificationTimeout.current) {
+                        clearTimeout(notificationTimeout.current);
+                    }
+                };
+            }, []);
+
+            useEffect(() => {
+                const body = document.body;
+                if (isRTL) {
+                    body.classList.remove('ltr');
+                    body.classList.add('rtl');
+                } else {
+                    body.classList.remove('rtl');
+                    body.classList.add('ltr');
+                }
+            }, [isRTL]);
+
+            const measureLatency = async (ip) => {
+                const start = performance.now();
+                const timeout = 1500; 
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), timeout);
+
+                try {
+                    await fetch(`https://${ip}:2096/__down`, { 
+                        mode: 'no-cors', 
+                        signal: controller.signal,
+                        cache: 'no-store'
+                    });
+                    clearTimeout(id);
+                    return Math.round(performance.now() - start);
+                } catch (error) {
+                    clearTimeout(id);
+                    if (error.name === 'AbortError') return -1;
+                    return Math.round(performance.now() - start); 
+                }
+            };
+
+            const startScan = async () => {
+                if (isRunning) return;
+                setIsRunning(true);
+                setResults([]);
+                setStats({ scanned: 0, found: 0 });
+                stopSignal.current = false;
+
+                const rangesList = config.ranges.split('\n').filter(r => r.trim().length > 0);
+                let foundCount = 0;
+                let scannedCount = 0;
+                const batchSize = 5; 
+
+                while (!stopSignal.current && foundCount < config.targetCount && scannedCount < config.maxScanLimit) {
+                    const batchIPs = Array.from({ length: batchSize }, () => getRandomIpFromRanges(rangesList));
+                    
+                    const promises = batchIPs.map(async (ip) => {
+                        const ping = await measureLatency(ip);
+                        return { ip, ping };
+                    });
+
+                    const batchResults = await Promise.all(promises);
+
+                    for (const res of batchResults) {
+                        scannedCount++;
+                        if (res.ping !== -1 && res.ping <= config.maxPing) {
+                            foundCount++;
+                            setResults(prev => [...prev, res].sort((a, b) => a.ping - b.ping));
+                        }
+                    }
+
+                    setStats({ scanned: scannedCount, found: foundCount });
+                    await new Promise(r => setTimeout(r, 50));
+                }
+                setIsRunning(false);
+            };
+
+            const stopScan = () => {
+                stopSignal.current = true;
+                setIsRunning(false);
+            };
+
+            const copyToClipboard = async (text, ip) => {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showNotification(`${ip} ${t.copiedSuccessfully}`, 'success');
+                } catch (err) {
+                    console.error('Failed to copy: ', err);
+                    showNotification(t.copyFailed, 'error');
+                }
+            };
+
+            const downloadCSV = () => {
+                const csvContent = "data:text/csv;charset=utf-8," 
+                    + "IP,Ping\n" 
+                    + results.map(e => `${e.ip},${e.ping}`).join("\n");
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "cloudflare_ips.csv");
+                document.body.appendChild(link);
+                link.click();
+            };
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 transition-all">
+                    {/* Notification Toast */}
+                    {notification.show && (
+                        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white font-medium transform transition-all duration-300 ${
+                            notification.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+                        } notification-toast`}>
+                            {notification.message}
+                        </div>
+                    )}
+
+                    {/* Header */}
+                    <header className="max-w-6xl mx-auto flex justify-between items-center mb-10 border-b border-white/10 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="text-accent"><IconShield /></div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-white tracking-wide">{t.title}</h1>
+                                <p className="text-xs text-gray-400 hidden sm:block">{t.subtitle}</p>
+                                <p className="text-sm text-accent">{t.internetForAll}</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => setLang(l => l === 'en' ? 'fa' : 'en')}
+                            className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 hover:border-accent hover:text-accent transition-colors text-sm"
+                        >
+                            <IconGlobe />
+                            {t.language}
+                        </button>
+                    </header>
+
+                    <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Settings Panel */}
+                        <section className="lg:col-span-1 space-y-6">
+                            <div className="bg-surface p-6 rounded-xl border border-white/5 shadow-xl">
+                                <div className="flex items-center gap-2 mb-4 text-accent">
+                                    <IconSettings />
+                                    <h2 className="font-bold text-lg">{t.settings}</h2>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-gray-400 mb-1">{t.ipCount}</label>
+                                        <input type="number" value={config.targetCount} onChange={(e) => setConfig({...config, targetCount: parseInt(e.target.value)})} className="w-full bg-primary border border-white/10 rounded-lg px-3 py-2 focus:border-accent focus:outline-none text-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-400 mb-1">{t.maxPing}</label>
+                                        <input type="number" value={config.maxPing} onChange={(e) => setConfig({...config, maxPing: parseInt(e.target.value)})} className="w-full bg-primary border border-white/10 rounded-lg px-3 py-2 focus:border-accent focus:outline-none text-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-400 mb-1">{t.scanLimit}</label>
+                                        <input type="number" value={config.maxScanLimit} onChange={(e) => setConfig({...config, maxScanLimit: parseInt(e.target.value)})} className="w-full bg-primary border border-white/10 rounded-lg px-3 py-2 focus:border-accent focus:outline-none text-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-400 mb-1">{t.ranges}</label>
+                                        <textarea value={config.ranges} onChange={(e) => setConfig({...config, ranges: e.target.value})} rows={5} className="w-full bg-primary border border-white/10 rounded-lg px-3 py-2 focus:border-accent focus:outline-none text-xs font-mono text-white" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3">
+                                {!isRunning ? (
+                                    <button onClick={startScan} className="w-full py-4 bg-accent text-primary font-bold rounded-xl hover:bg-[#b08d55] transition-all flex justify-center items-center gap-2 shadow-lg shadow-accent/20">
+                                        <IconPlay /> {t.start}
+                                    </button>
+                                ) : (
+                                    <button onClick={stopScan} className="w-full py-4 bg-red-500/10 text-red-500 border border-red-500 font-bold rounded-xl hover:bg-red-500 hover:text-white transition-all flex justify-center items-center gap-2">
+                                        <IconStop /> {t.stop}
+                                    </button>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* Results Panel */}
+                        <section className="lg:col-span-2 flex flex-col h-full">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                                <div className="bg-surface p-4 rounded-lg border border-white/5 text-center">
+                                    <span className="block text-xs text-gray-400 uppercase tracking-wider">{t.status}</span>
+                                    <span className={`block font-bold mt-1 ${isRunning ? 'text-accent animate-pulse' : 'text-white'}`}>{isRunning ? t.scanning : (results.length > 0 ? t.completed : t.idle)}</span>
+                                </div>
+                                <div className="bg-surface p-4 rounded-lg border border-white/5 text-center">
+                                    <span className="block text-xs text-gray-400 uppercase tracking-wider">{t.scanned}</span>
+                                    <span className="block font-bold mt-1 text-white">{stats.scanned}</span>
+                                </div>
+                                <div className="bg-surface p-4 rounded-lg border border-white/5 text-center">
+                                    <span className="block text-xs text-gray-400 uppercase tracking-wider">{t.found}</span>
+                                    <span className="block font-bold mt-1 text-emerald-400">{stats.found}</span>
+                                </div>
+                                <div className="bg-surface p-4 rounded-lg border border-white/5 text-center">
+                                    <span className="block text-xs text-gray-400 uppercase tracking-wider">{t.bestIpChance}</span>
+                                    <span className="block font-bold mt-1 text-accent">ON</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-surface rounded-xl border border-white/5 overflow-hidden flex-grow flex flex-col shadow-2xl h-[500px]">
+                                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#252525]">
+                                    <h3 className="font-bold flex items-center gap-2"><IconWifi /> {t.results}</h3>
+                                    {results.length > 0 && (
+                                        <button onClick={downloadCSV} className="text-xs text-accent flex items-center gap-1 hover:underline">
+                                            <IconDownload /> {t.export}
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                <div className="overflow-y-auto flex-grow custom-scrollbar">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-[#1E1E1E] sticky top-0 z-10 text-xs uppercase text-gray-400">
+                                            <tr>
+                                                <th className="p-4 font-semibold">{t.ip}</th>
+                                                <th className="p-4 font-semibold"></th>
+                                                <th className="p-4 font-semibold text-right">{t.ping}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5 text-sm">
+                                            {results.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="3" className="p-8 text-center text-gray-500 italic">{t.desc}</td>
+                                                </tr>
+                                            ) : (
+                                                results.map((res, idx) => (
+                                                    <tr key={idx} className="hover:bg-white/5 transition-colors group">
+                                                        <td className="p-4 font-mono text-white group-hover:text-accent transition-colors">{res.ip}</td>
+                                                        <td className="p-4">
+                                                            <button 
+                                                                onClick={() => copyToClipboard(res.ip, res.ip)}
+                                                                className="text-gray-400 hover:text-accent transition-colors p-1.5 rounded opacity-70 hover:opacity-100 hover:cursor-pointer"
+                                                                title={t.copy}
+                                                            >
+                                                                <IconCopy />
+                                                            </button>
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                                res.ping < 100 ? 'bg-emerald-500/20 text-emerald-400' : 
+                                                                res.ping < 200 ? 'bg-yellow-500/20 text-yellow-400' : 
+                                                                'bg-red-500/20 text-red-400'
+                                                            }`}>
+                                                                {res.ping} ms
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+                    </main>
+
+                    <div className="max-w-6xl mx-auto mt-8 text-center">
+                        <a href="https://github.com/naajidevs" target="_blank" rel="noopener noreferrer">
+                            <button className="px-6 py-3 bg-gradient-to-r from-gray-800 to-gray-900 text-white font-bold rounded-xl border border-gray-600 hover:from-gray-700 hover:to-gray-800 transition-all shadow-lg hover:shadow-gray-900/30 flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                </svg>
+                                {t.githubButton}
+                            </button>
+                        </a>
+                    </div>
+
+                    <footer className="max-w-6xl mx-auto mt-12 text-center text-xs text-gray-600 border-t border-white/5 pt-6">
+                        <p>{t.copyright}</p>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
